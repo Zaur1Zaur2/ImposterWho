@@ -1,7 +1,9 @@
 package com.example.myapplication.ui
 
+import android.app.Application
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -26,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -1695,4 +1698,22 @@ fun EjectAnimationScreen(viewModel: GameViewModel) {
             Text(t("next", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    val context = LocalContext.current
+    val app = (context.applicationContext as? Application) ?: Application()
+    val vm = remember { GameViewModel(app) }
+    HomeScreen(vm)
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SetupScreenPreview() {
+    val context = LocalContext.current
+    val app = (context.applicationContext as? Application) ?: Application()
+    val vm = remember { GameViewModel(app) }
+    SetupScreen(vm)
 }

@@ -13,7 +13,13 @@ import androidx.lifecycle.AndroidViewModel
 class GameViewModel(application: Application) : AndroidViewModel(application) {
     
     private val secureRandom = SecureRandom()
-    private val prefs = application.getSharedPreferences("ImposterGamePrefs", Context.MODE_PRIVATE)
+    private val prefs by lazy {
+        try {
+            application.getSharedPreferences("ImposterGamePrefs", Context.MODE_PRIVATE)
+        } catch (_: Exception) {
+            null
+        }
+    }
     
     private val playerColors = listOf(
         0xFFFFD600, 0xFF00B0FF, 0xFFFF3D00, 0xFFFF6D00, 
@@ -45,7 +51,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveGameState() {
         try {
-            val editor = prefs.edit()
+            val editor = prefs?.edit() ?: return
             editor.putString("gameState", gameState.value.name)
             editor.putInt("currentPlayerIndex", currentPlayerIndex.intValue)
             editor.putInt("votingPlayerIndex", votingPlayerIndex.intValue)
@@ -78,35 +84,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun restoreGameState() {
         try {
-            val savedState = prefs.getString("gameState", null) ?: return
+            val p = prefs ?: return
+            val savedState = p.getString("gameState", null) ?: return
             if (savedState == "HOME") return // Don't auto-restore if home
             
             gameState.value = GameState.valueOf(savedState)
-            currentPlayerIndex.intValue = prefs.getInt("currentPlayerIndex", 0)
-            votingPlayerIndex.intValue = prefs.getInt("votingPlayerIndex", 0)
-            language.value = Language.valueOf(prefs.getString("language", "AZ") ?: "AZ")
-            difficulty.value = Difficulty.valueOf(prefs.getString("difficulty", "MEDIUM") ?: "MEDIUM")
-            gameMode.value = GameMode.valueOf(prefs.getString("gameMode", "CLASSIC") ?: "CLASSIC")
-            accentColor.longValue = prefs.getLong("accentColor", 0xFF9D50BB)
-            timerDurationSeconds.intValue = prefs.getInt("timerDuration", 60)
+            currentPlayerIndex.intValue = p.getInt("currentPlayerIndex", 0)
+            votingPlayerIndex.intValue = p.getInt("votingPlayerIndex", 0)
+            language.value = Language.valueOf(p.getString("language", "AZ") ?: "AZ")
+            difficulty.value = Difficulty.valueOf(p.getString("difficulty", "MEDIUM") ?: "MEDIUM")
+            gameMode.value = GameMode.valueOf(p.getString("gameMode", "CLASSIC") ?: "CLASSIC")
+            accentColor.longValue = p.getLong("accentColor", 0xFF9D50BB)
+            timerDurationSeconds.intValue = p.getInt("timerDuration", 60)
 
-            val count = prefs.getInt("playerCount", 0)
+            val count = p.getInt("playerCount", 0)
             if (count > 0) {
                 players.clear()
                 for (idx in 0 until count) {
-                    val id = prefs.getInt("p_id_$idx", idx + 1)
-                    val name = prefs.getString("p_name_$idx", "Player ${idx + 1}") ?: "Player ${idx + 1}"
-                    val role = Role.valueOf(prefs.getString("p_role_$idx", "CIVILIAN") ?: "CIVILIAN")
-                    val word = prefs.getString("p_word_$idx", "") ?: ""
-                    val def = prefs.getString("p_def_$idx", "") ?: ""
-                    val elim = prefs.getBoolean("p_elim_$idx", false)
-                    val rev = prefs.getBoolean("p_rev_$idx", false)
-                    val color = prefs.getLong("p_color_$idx", playerColors[idx % playerColors.size])
-                    val voted = prefs.getInt("p_voted_$idx", -1).let { if (it == -1) null else it }
-                    val score = prefs.getInt("p_score_$idx", 0)
-                    val played = prefs.getInt("p_played_$idx", 0)
-                    val civW = prefs.getInt("p_civW_$idx", 0)
-                    val impW = prefs.getInt("p_impW_$idx", 0)
+                    val id = p.getInt("p_id_$idx", idx + 1)
+                    val name = p.getString("p_name_$idx", "Player ${idx + 1}") ?: "Player ${idx + 1}"
+                    val role = Role.valueOf(p.getString("p_role_$idx", "CIVILIAN") ?: "CIVILIAN")
+                    val word = p.getString("p_word_$idx", "") ?: ""
+                    val def = p.getString("p_def_$idx", "") ?: ""
+                    val elim = p.getBoolean("p_elim_$idx", false)
+                    val rev = p.getBoolean("p_rev_$idx", false)
+                    val color = p.getLong("p_color_$idx", playerColors[idx % playerColors.size])
+                    val voted = p.getInt("p_voted_$idx", -1).let { if (it == -1) null else it }
+                    val score = p.getInt("p_score_$idx", 0)
+                    val played = p.getInt("p_played_$idx", 0)
+                    val civW = p.getInt("p_civW_$idx", 0)
+                    val impW = p.getInt("p_impW_$idx", 0)
 
                     players.add(
                         Player(
