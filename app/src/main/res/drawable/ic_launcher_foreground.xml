@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:translateX="21"
+        android:translateY="21"
+        android:scaleX="0.6"
+        android:scaleY="0.6">
+
+        <!-- Large Text IMPOSTER WHO representation -->
+        <!-- Center centered with enough padding for squircle masking -->
+
+        <!-- 'IMPOSTER' -->
+        <path android:fillColor="@color/ic_launcher_text_color" android:pathData="M0,0h8v24h-8z M12,0h24v4h-16v6h12v4h-12v6h16v4h-24z M40,0h20v24h-8v-16l-4,16h-4l-4,-16v16h-8z M64,0h8v24h-8z M76,0h16v4h-12v16h12v4h-16z M96,0h24v4h-16v6h12v4h-12v6h16v4h-24z" />
+
+        <!-- 'WHO?' -->
+        <group android:translateY="30" android:scaleX="1.5" android:scaleY="1.5" android:translateX="-10">
+            <path android:fillColor="@color/ic_launcher_text_color" android:pathData="M0,0h8l4,12l4,-12h8v32h-8v-20l-4,20h-4l-4,-20v20h-8z M32,0h8v12h4v-12h8v32h-8v-12h-4v12h-8z M56,0h20v32h-20z M62,6v20h8v-20z M80,0h16v8h-8v4h8v16h-16v-8h8v2h-8v-14h16v-2h-16z" />
+        </group>
+    </group>
+
+</vector>
