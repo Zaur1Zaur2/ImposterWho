@@ -300,72 +300,6 @@ fun ImposterGame(viewModel: GameViewModel) {
 // --- 1. Home Screen (Decluttered & Ultra-Clean) ---
 
 @Composable
-fun ScreenshotCarousel(modifier: Modifier = Modifier) {
-    val screenshots = listOf(
-        R.drawable.ss_1, R.drawable.ss_2, R.drawable.ss_3, R.drawable.ss_4,
-        R.drawable.ss_5, R.drawable.ss_6, R.drawable.ss_7, R.drawable.ss_8,
-        R.drawable.ss_9, R.drawable.ss_10, R.drawable.ss_11, R.drawable.ss_12,
-        R.drawable.ss_13, R.drawable.ss_14
-    )
-    var selectedResId by remember { mutableStateOf<Int?>(null) }
-
-    if (selectedResId != null) {
-        Dialog(onDismissRequest = { selectedResId = null }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.Black.copy(alpha = 0.95f))
-                    .border(1.dp, GlassBorder, RoundedCornerShape(24.dp))
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(id = selectedResId!!),
-                        contentDescription = "Full Screenshot",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 450.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    TextButton(onClick = { selectedResId = null }) {
-                        Text("BAĞLA / CLOSE", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
-
-    LazyRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 4.dp)
-    ) {
-        items(screenshots) { resId ->
-            Box(
-                modifier = Modifier
-                    .size(64.dp, 100.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(GlassBackground)
-                    .border(1.dp, GlassBorder, RoundedCornerShape(14.dp))
-                    .clickable { selectedResId = resId }
-            ) {
-                Image(
-                    painter = painterResource(id = resId),
-                    contentDescription = "Thumbnail",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-    }
-}
-
-@Composable
 fun HomeScreen(viewModel: GameViewModel) {
     val lang = viewModel.language.value
     val accentColor = Color(viewModel.accentColor.longValue)
@@ -440,9 +374,6 @@ fun HomeScreen(viewModel: GameViewModel) {
                 )
             )
         }
-
-        // Screenshots Carousel (Small Format)
-        ScreenshotCarousel()
 
         // Language Segmented Selector dynamically controlled by accentColor
         Row(

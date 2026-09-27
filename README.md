@@ -9,6 +9,33 @@
 
 ---
 
+## 📱 App Screenshots
+
+<p align="center">
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204257.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204322.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204333.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204625.png" width="200" />
+</p>
+<p align="center">
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204636.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204645.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204651.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204702.png" width="200" />
+</p>
+<p align="center">
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204706.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204732.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204739.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204745.png" width="200" />
+</p>
+<p align="center">
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204752.png" width="200" />
+  <img src="app/src/main/res/drawable/salam/Screenshot_20260927_204758.png" width="200" />
+</p>
+
+---
+
 ## 🌟 Key Features
 
 * **🎭 Multiple Game Modes**:
