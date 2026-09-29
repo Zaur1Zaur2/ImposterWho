@@ -74,7 +74,8 @@ data class Player(
     var civilianWins: Int = 0,
     var imposterWins: Int = 0,
     var assignedTargetPlayerId: Int? = null,
-    var secretCharacterName: String = ""
+    var secretCharacterName: String = "",
+    var whoAmIScore: Int = 0
 )
 
 data class LocalizedWord(

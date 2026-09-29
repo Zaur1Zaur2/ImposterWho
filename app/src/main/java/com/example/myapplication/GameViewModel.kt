@@ -70,6 +70,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val whoAmIGuessIndex = mutableIntStateOf(0)
     val whoAmIFeedback = mutableStateOf("")
     val whoAmICompleted = mutableStateOf(false)
+    val isPhoneTilted = mutableStateOf(false)
 
     init {
         restoreGameState()
@@ -104,6 +105,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 editor.putInt("p_civW_$idx", p.civilianWins)
                 editor.putInt("p_impW_$idx", p.imposterWins)
                 editor.putString("p_secretChar_$idx", p.secretCharacterName)
+                editor.putInt("p_whoAmIScore_$idx", p.whoAmIScore)
             }
             editor.apply()
         } catch (_: Exception) {}
@@ -143,13 +145,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     val civW = p.getInt("p_civW_$idx", 0)
                     val impW = p.getInt("p_impW_$idx", 0)
                     val secretChar = p.getString("p_secretChar_$idx", "") ?: ""
+                    val wScore = p.getInt("p_whoAmIScore_$idx", 0)
 
                     players.add(
                         Player(
                             id = id, name = name, role = role, word = word, definition = def,
                             isEliminated = elim, isRevealed = rev, color = color, votedFor = voted,
                             imposterScore = score, gamesPlayed = played, civilianWins = civW, imposterWins = impW,
-                            secretCharacterName = secretChar
+                            secretCharacterName = secretChar, whoAmIScore = wScore
                         )
                     )
                 }
@@ -513,7 +516,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         completedStory.value = ""
         whoWithWhomGameCount.intValue++
 
-        // Randomize player assignment order completely every game!
         whoWithWhomPlayerOrder.clear()
         val shuffled = players.indices.toMutableList()
         for (i in shuffled.size - 1 downTo 1) {
@@ -567,13 +569,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun generateCompletedStory() {
         val isAz = language.value == Language.AZ
-        val count = storyInputs.size
-
-        completedStory.value = if (isAz) {
-            storyInputs.joinToString(" ") { it }
-        } else {
-            storyInputs.joinToString(" ") { it }
-        }
+        completedStory.value = storyInputs.joinToString(" ") { it }
         gameState.value = GameState.RESULT
     }
 
@@ -636,6 +632,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         whoAmIGuessIndex.intValue = 0
         whoAmIFeedback.value = ""
         whoAmICompleted.value = false
+        isPhoneTilted.value = false
+
+        players.indices.forEach { i ->
+            players[i] = players[i].copy(whoAmIScore = 0, secretCharacterName = "")
+        }
 
         val offset = if (players.size > 2) 2 else 1
         players.forEachIndexed { i, p ->
@@ -663,13 +664,24 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setWhoAmIFeedback(feedback: String) {
-        whoAmIFeedback.value = feedback
+    fun addWhoAmIPoints(points: Int, feedbackText: String) {
+        val guessIdx = whoAmIGuessIndex.intValue
+        if (guessIdx < players.size) {
+            val p = players[guessIdx]
+            players[guessIdx] = p.copy(whoAmIScore = p.whoAmIScore + points)
+            whoAmIFeedback.value = "$feedbackText (+${points} xal)"
+        }
     }
 
-    fun confirmWhoAmIFound() {
-        whoAmICompleted.value = true
-        gameState.value = GameState.RESULT
+    fun advanceWhoAmINextPlayer() {
+        if (whoAmIGuessIndex.intValue < players.size - 1) {
+            whoAmIGuessIndex.intValue++
+            whoAmIFeedback.value = ""
+            isPhoneTilted.value = false
+        } else {
+            whoAmICompleted.value = true
+            gameState.value = GameState.RESULT
+        }
     }
 
     fun toggleLanguage() {
