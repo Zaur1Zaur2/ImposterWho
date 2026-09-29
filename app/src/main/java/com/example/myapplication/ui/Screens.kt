@@ -1476,13 +1476,17 @@ fun WhoWithWhomScreen(viewModel: GameViewModel) {
             }
         } else if (viewModel.gameState.value == GameState.PLAYING) {
             val prompt = if (stepIdx < prompts.size) prompts[stepIdx] else "..."
+            val activePlayerName = viewModel.getCurrentStoryPlayerName()
             GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Text(prompt, fontSize = 28.sp, fontWeight = FontWeight.Black, color = accentColor)
-                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    text = "$activePlayerName - $prompt",
+                    fontSize = 24.sp, fontWeight = FontWeight.Black, color = accentColor, textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    label = { Text(if (lang == Language.AZ) "Bura yazın..." else "Type here...", color = Color.White.copy(0.7f)) },
+                    label = { Text(if (lang == Language.AZ) "Cavabınızı yazın..." else "Type your answer...", color = Color.White.copy(0.7f)) },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White, unfocusedTextColor = Color.White,
                         focusedBorderColor = accentColor, unfocusedBorderColor = GlassBorder
@@ -1591,15 +1595,32 @@ fun TruthOrDareScreen(viewModel: GameViewModel) {
         GlassCard(modifier = Modifier.fillMaxWidth().height(260.dp)) {
             if (targetPlayer != null) {
                 Text(
-                    targetPlayer.name,
-                    fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(targetPlayer.color)
+                    "${targetPlayer.name}, seçimini et!",
+                    fontSize = 26.sp, fontWeight = FontWeight.Black, color = Color(targetPlayer.color), textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
-            if (item != null) {
+            if (item == null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { viewModel.pickTruthOrDareChoice(true) },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                    ) {
+                        Text("DÜZLÜK / TRUTH", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = { viewModel.pickTruthOrDareChoice(false) },
+                        modifier = Modifier.weight(1f).height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonRed)
+                    ) {
+                        Text("CƏSARƏT / DARE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            } else {
                 Text(
-                    if (item.isTruth) "DÜZLÜK / TRUTH" else "CƏSARƏT / DARE",
+                    if (item.isTruth) "DÜZLÜK (TRUTH)" else "CƏSARƏT (DARE)",
                     fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (item.isTruth) NeonCyan else NeonRed
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1611,12 +1632,12 @@ fun TruthOrDareScreen(viewModel: GameViewModel) {
         }
 
         Button(
-            onClick = { viewModel.pickNextTruthOrDare() },
+            onClick = { viewModel.nextTodTurn() },
             modifier = Modifier.fillMaxWidth(0.85f).height(60.dp),
             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
             shape = RoundedCornerShape(24.dp)
         ) {
-            Text(t("next", lang), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("Növbəti Oyunçu / Next Player", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
     }
 }
@@ -1663,13 +1684,32 @@ fun AliasHotPotatoScreen(viewModel: GameViewModel) {
             Spacer(modifier = Modifier.size(48.dp))
         }
 
-        GlassCard(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+        // Category Selector
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(listOf("General", "School", "Food", "Tech", "Animal", "City", "Space")) { cat ->
+                val isSelected = viewModel.hotPotatoCategory.value == cat
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (isSelected) accentColor else GlassBackground)
+                        .clickable {
+                            viewModel.hotPotatoCategory.value = cat
+                            viewModel.pickNextAliasWord()
+                        }
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Text(translateCategory(cat, lang), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        GlassCard(modifier = Modifier.fillMaxWidth().height(240.dp)) {
             if (viewModel.isHotPotatoExploded.value) {
                 Text("💥 BOOM! KARTOF PARTLADI! 💥", fontSize = 26.sp, fontWeight = FontWeight.Black, color = NeonRed, textAlign = TextAlign.Center)
             } else {
-                Text("TAYMER: ${timeLeft}s", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = if (timeLeft <= 5) NeonRed else NeonYellow)
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(word, fontSize = 36.sp, fontWeight = FontWeight.Black, color = Color.White, textAlign = TextAlign.Center)
+                Text("TAYMER: ${timeLeft}s", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = if (timeLeft <= 5) NeonRed else NeonYellow)
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(word, fontSize = 34.sp, fontWeight = FontWeight.Black, color = Color.White, textAlign = TextAlign.Center)
             }
         }
 
