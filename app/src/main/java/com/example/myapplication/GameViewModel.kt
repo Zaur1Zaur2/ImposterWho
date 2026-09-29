@@ -27,6 +27,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         0xFFF50057, 0xFF00E5FF, 0xFF1DE9B6, 0xFFC6FF00
     )
 
+    val activeGame = mutableStateOf(ActiveGame.HUB)
+
     val players = mutableStateListOf<Player>(
         Player(1, "Player 1", color = 0xFFFF4444),
         Player(2, "Player 2", color = 0xFF33B5E5),
@@ -39,11 +41,31 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val language = mutableStateOf(Language.AZ)
     val difficulty = mutableStateOf(Difficulty.MEDIUM)
     val selectedCategories = mutableStateListOf<String>("General")
-    val accentColor = mutableLongStateOf(0xFF9D50BB)
+    val accentColor = mutableLongStateOf(0xFF9D50BB) // Default NeonPurple
     val discussionStarterId = mutableStateOf<Int?>(null)
     val revealOrder = mutableStateListOf<Int>()
     val votingPlayerIndex = mutableIntStateOf(0) 
     val timerDurationSeconds = mutableIntStateOf(60)
+
+    // --- Game 2: Who With Whom (Kim, Kimlə) ---
+    val storyInputs = mutableStateListOf<String>()
+    val storyStepIndex = mutableIntStateOf(0)
+    val completedStory = mutableStateOf("")
+
+    // --- Game 3: Truth or Dare ---
+    val truthOrDareMode = mutableStateOf(TruthOrDareMode.NINTH_GRADE)
+    val currentTruthOrDareItem = mutableStateOf<TruthOrDareItem?>(null)
+    val currentTodPlayer = mutableStateOf<Player?>(null)
+
+    // --- Game 4: Alias & Hot Potato ---
+    val currentAliasWord = mutableStateOf("")
+    val isHotPotatoExploded = mutableStateOf(false)
+
+    // --- Game 5: Who Am I? ---
+    val whoAmIAssignmentIndex = mutableIntStateOf(0)
+    val whoAmIGuessIndex = mutableIntStateOf(0)
+    val whoAmIFeedback = mutableStateOf("")
+    val whoAmICompleted = mutableStateOf(false)
 
     init {
         restoreGameState()
@@ -52,6 +74,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun saveGameState() {
         try {
             val editor = prefs?.edit() ?: return
+            editor.putString("activeGame", activeGame.value.name)
             editor.putString("gameState", gameState.value.name)
             editor.putInt("currentPlayerIndex", currentPlayerIndex.intValue)
             editor.putInt("votingPlayerIndex", votingPlayerIndex.intValue)
@@ -61,7 +84,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             editor.putLong("accentColor", accentColor.longValue)
             editor.putInt("timerDuration", timerDurationSeconds.intValue)
             
-            // Save players count and details
             editor.putInt("playerCount", players.size)
             players.forEachIndexed { idx, p ->
                 editor.putInt("p_id_$idx", p.id)
@@ -77,6 +99,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 editor.putInt("p_played_$idx", p.gamesPlayed)
                 editor.putInt("p_civW_$idx", p.civilianWins)
                 editor.putInt("p_impW_$idx", p.imposterWins)
+                editor.putString("p_secretChar_$idx", p.secretCharacterName)
             }
             editor.apply()
         } catch (_: Exception) {}
@@ -86,8 +109,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         try {
             val p = prefs ?: return
             val savedState = p.getString("gameState", null) ?: return
-            if (savedState == "HOME") return // Don't auto-restore if home
+            if (savedState == "HOME") return
             
+            activeGame.value = ActiveGame.valueOf(p.getString("activeGame", "HUB") ?: "HUB")
             gameState.value = GameState.valueOf(savedState)
             currentPlayerIndex.intValue = p.getInt("currentPlayerIndex", 0)
             votingPlayerIndex.intValue = p.getInt("votingPlayerIndex", 0)
@@ -114,12 +138,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     val played = p.getInt("p_played_$idx", 0)
                     val civW = p.getInt("p_civW_$idx", 0)
                     val impW = p.getInt("p_impW_$idx", 0)
+                    val secretChar = p.getString("p_secretChar_$idx", "") ?: ""
 
                     players.add(
                         Player(
                             id = id, name = name, role = role, word = word, definition = def,
                             isEliminated = elim, isRevealed = rev, color = color, votedFor = voted,
-                            imposterScore = score, gamesPlayed = played, civilianWins = civW, imposterWins = impW
+                            imposterScore = score, gamesPlayed = played, civilianWins = civW, imposterWins = impW,
+                            secretCharacterName = secretChar
                         )
                     )
                 }
@@ -130,7 +156,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addPlayer() {
-        if (players.size < 50) {
+        val maxP = if (activeGame.value == ActiveGame.WHO_WITH_WHOM) 6 else 50
+        if (players.size < maxP) {
             val nextId = (players.maxByOrNull { it.id }?.id ?: 0) + 1
             val nextColor = playerColors[players.size % playerColors.size]
             players.add(Player(nextId, "Player $nextId", color = nextColor))
@@ -149,7 +176,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removePlayer(player: Player) {
-        if (players.size > 3) {
+        val minP = if (activeGame.value == ActiveGame.WHO_WITH_WHOM) 3 else 3
+        if (players.size > minP) {
             players.remove(player)
             saveGameState()
         }
@@ -170,13 +198,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- Imposter Who Setup ---
     fun setupGame() {
         assignRoles(gameMode.value)
-        
         players.forEachIndexed { index, player ->
             players[index] = player.copy(votedFor = null, isEliminated = false, isRevealed = false)
         }
-        
         votingPlayerIndex.intValue = 0
         revealOrder.clear()
         
@@ -214,7 +241,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             players[i] = players[i].copy(
                 role = Role.CIVILIAN,
                 word = civilianWord,
-                definition = civilianWord, // Definition is the same as the word itself!
+                definition = civilianWord,
                 isEliminated = false,
                 isRevealed = false,
                 votedFor = null
@@ -224,7 +251,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val specialRoleIndices = pickSpecialRoleIndices(mode, players)
         
         specialRoleIndices.forEach { index ->
-            // Increase imposterScore by 1 when chosen as imposter, thus decreasing future chances
             players[index] = players[index].copy(imposterScore = players[index].imposterScore + 1)
             
             val role = when (mode) {
@@ -244,7 +270,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 Role.UNDERCOVER -> {
                     assignedWord = if (isAz) wordPair.word2.az else wordPair.word2.en
-                    assignedDef = assignedWord // Definition is the same as the word itself!
+                    assignedDef = assignedWord
                 }
                 Role.SPY -> {
                     val hintText = when (difficulty.value) {
@@ -267,25 +293,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             
             players[index] = players[index].copy(role = role, word = assignedWord, definition = assignedDef)
         }
-        
-        if (mode == GameMode.TROLL) {
-            players.indices.forEach { i ->
-                val pair = WordDatabase.getRandomPair(selectedCategories.toList(), difficulty.value)
-                val trollWord = if (isAz) pair.word1.az else pair.word1.en
-                players[i] = players[i].copy(
-                    word = trollWord,
-                    definition = trollWord
-                )
-            }
-        }
     }
 
-    /**
-     * Weighted Imposter Selection:
-     * Weight = 1.0 / (imposterScore + 1.0).
-     * If one person becomes an imposter, their imposterScore increases by 1,
-     * thus decreasing their chances of becoming imposter again.
-     */
     private fun pickSpecialRoleIndices(mode: GameMode, currentPlayers: List<Player>): List<Int> {
         val countNeeded = if (mode == GameMode.DUO) 2 else 1
         val selectedIndices = mutableListOf<Int>()
@@ -490,7 +499,135 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         gameState.value = GameState.REVEAL
         saveGameState()
     }
-    
+
+    // --- Game 2: Who With Whom (Kim, Kimlə) ---
+    fun startWhoWithWhom() {
+        if (players.size < 3) return
+        while (players.size > 6) players.removeAt(players.lastIndex)
+        storyInputs.clear()
+        storyStepIndex.intValue = 0
+        completedStory.value = ""
+        activeGame.value = ActiveGame.WHO_WITH_WHOM
+        gameState.value = GameState.PLAYING
+    }
+
+    fun submitStoryInput(input: String) {
+        if (input.isNotBlank()) {
+            storyInputs.add(input.trim())
+            if (storyInputs.size < getWhoWithWhomPrompts().size) {
+                storyStepIndex.intValue++
+            } else {
+                generateCompletedStory()
+            }
+        }
+    }
+
+    fun getWhoWithWhomPrompts(): List<String> {
+        val isAz = language.value == Language.AZ
+        return when (players.size) {
+            3 -> if (isAz) listOf("1. Kim?", "2. Kimlə?", "3. Ne edir?") else listOf("1. Who?", "2. With whom?", "3. Doing what?")
+            4 -> if (isAz) listOf("1. Kim?", "2. Kimlə?", "3. Harada?", "4. Ne edir?") else listOf("1. Who?", "2. With whom?", "3. Where?", "4. Doing what?")
+            5 -> if (isAz) listOf("1. Kim?", "2. Kimlə?", "3. Harada?", "4. Ne edir?", "5. Kim gördü?") else listOf("1. Who?", "2. With whom?", "3. Where?", "4. Doing what?", "5. Who saw it?")
+            else -> if (isAz) listOf("1. Kim?", "2. Kimlə?", "3. Harada?", "4. Ne vaxt?", "5. Ne edir?", "6. Kim gördü?") else listOf("1. Who?", "2. With whom?", "3. Where?", "4. When?", "5. Doing what?", "6. Who saw it?")
+        }
+    }
+
+    private fun generateCompletedStory() {
+        val isAz = language.value == Language.AZ
+        completedStory.value = if (isAz) {
+            when (players.size) {
+                3 -> "${storyInputs.getOrElse(0){""}}və ${storyInputs.getOrElse(1){""}} ${storyInputs.getOrElse(2){""}}."
+                4 -> "${storyInputs.getOrElse(0){""}}və ${storyInputs.getOrElse(1){""}} ${storyInputs.getOrElse(2){""}} ${storyInputs.getOrElse(3){""}}."
+                5 -> "${storyInputs.getOrElse(0){""}}və ${storyInputs.getOrElse(1){""}} ${storyInputs.getOrElse(2){""}} ${storyInputs.getOrElse(3){""}}. Bunu ${storyInputs.getOrElse(4){""}} gördü!"
+                else -> "${storyInputs.getOrElse(0){""}}və ${storyInputs.getOrElse(1){""}} ${storyInputs.getOrElse(2){""}} ${storyInputs.getOrElse(3){""}} ${storyInputs.getOrElse(4){""}}. Bunu ${storyInputs.getOrElse(5){""}} gördü!"
+            }
+        } else {
+            when (players.size) {
+                3 -> "${storyInputs.getOrElse(0){""}} and ${storyInputs.getOrElse(1){""}} are ${storyInputs.getOrElse(2){""}}."
+                4 -> "${storyInputs.getOrElse(0){""}} and ${storyInputs.getOrElse(1){""}} at ${storyInputs.getOrElse(2){""}} are ${storyInputs.getOrElse(3){""}}."
+                5 -> "${storyInputs.getOrElse(0){""}} and ${storyInputs.getOrElse(1){""}} at ${storyInputs.getOrElse(2){""}} are ${storyInputs.getOrElse(3){""}}. ${storyInputs.getOrElse(4){""}} saw it!"
+                else -> "${storyInputs.getOrElse(0){""}} and ${storyInputs.getOrElse(1){""}} at ${storyInputs.getOrElse(2){""}} ${storyInputs.getOrElse(3){""}} are ${storyInputs.getOrElse(4){""}}. ${storyInputs.getOrElse(5){""}} saw it!"
+            }
+        }
+        gameState.value = GameState.RESULT
+    }
+
+    // --- Game 3: Truth or Dare ---
+    fun startTruthOrDare() {
+        activeGame.value = ActiveGame.TRUTH_OR_DARE
+        gameState.value = GameState.PLAYING
+        pickNextTruthOrDare()
+    }
+
+    fun pickNextTruthOrDare() {
+        val filtered = WordDatabase.truthOrDareItems.filter { it.mode == truthOrDareMode.value }
+        if (filtered.isNotEmpty()) {
+            currentTruthOrDareItem.value = filtered[secureRandom.nextInt(filtered.size)]
+        }
+        if (players.isNotEmpty()) {
+            currentTodPlayer.value = players[secureRandom.nextInt(players.size)]
+        }
+    }
+
+    // --- Game 4: Alias & Hot Potato ---
+    fun startAliasHotPotato() {
+        activeGame.value = ActiveGame.ALIAS_HOT_POTATO
+        gameState.value = GameState.PLAYING
+        isHotPotatoExploded.value = false
+        pickNextAliasWord()
+    }
+
+    fun pickNextAliasWord() {
+        val list = WordDatabase.aliasWords
+        if (list.isNotEmpty()) {
+            currentAliasWord.value = list[secureRandom.nextInt(list.size)]
+        }
+    }
+
+    // --- Game 5: Who Am I? ---
+    fun startWhoAmI() {
+        activeGame.value = ActiveGame.WHO_AM_I
+        whoAmIAssignmentIndex.intValue = 0
+        whoAmIGuessIndex.intValue = 0
+        whoAmIFeedback.value = ""
+        whoAmICompleted.value = false
+
+        // Assign pairings: Player A assigns for (A+2)%N, B for B+2, etc. (random offset)
+        val offset = if (players.size > 2) 2 else 1
+        players.forEachIndexed { i, p ->
+            val targetIdx = (i + offset) % players.size
+            players[i] = p.copy(
+                assignedTargetPlayerId = players[targetIdx].id,
+                secretCharacterName = ""
+            )
+        }
+
+        gameState.value = GameState.SETUP
+    }
+
+    fun submitWhoAmICharacter(characterName: String) {
+        val assigner = players[whoAmIAssignmentIndex.intValue]
+        val targetId = assigner.assignedTargetPlayerId
+        val targetIdx = players.indexOfFirst { it.id == targetId }
+        if (targetIdx != -1 && characterName.isNotBlank()) {
+            players[targetIdx] = players[targetIdx].copy(secretCharacterName = characterName.trim())
+            if (whoAmIAssignmentIndex.intValue < players.size - 1) {
+                whoAmIAssignmentIndex.intValue++
+            } else {
+                gameState.value = GameState.PLAYING
+            }
+        }
+    }
+
+    fun setWhoAmIFeedback(feedback: String) {
+        whoAmIFeedback.value = feedback
+    }
+
+    fun confirmWhoAmIFound() {
+        whoAmICompleted.value = true
+        gameState.value = GameState.RESULT
+    }
+
     fun toggleLanguage() {
         language.value = if (language.value == Language.AZ) Language.EN else Language.AZ
         saveGameState()

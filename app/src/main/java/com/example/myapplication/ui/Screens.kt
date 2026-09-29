@@ -48,6 +48,8 @@ import java.util.Random
 val NeonBlue = Color(0xFF6E48AA)
 val NeonCyan = Color(0xFF00E5FF)
 val NeonRed = Color(0xFFFF3D00)
+val NeonGreen = Color(0xFF00E676)
+val NeonYellow = Color(0xFFFFBB33)
 
 val GlassBackground = Color.White.copy(alpha = 0.1f)
 val GlassBorder = Color.White.copy(alpha = 0.2f)
@@ -121,10 +123,9 @@ fun t(key: String, language: Language): String {
         "imposter_reveal" to "İMPOSTERİ GÖR",
         "word_reveal" to "SÖZÜ GÖR",
         "how_to_play" to "Necə Oynamalı?",
-        "hint_text" to "Hər kəsə bir söz verilir, amma İmposter(lər) başqa bir şey və ya heç nə görmür. Müzakirə edin və saxtakarı tapın!",
+        "hint_text" to "Social Games əyləncəli sosial oyunlar toplusudur! Bütün oyunları dostlarınızla bir telefonda oynaya bilərsiniz.",
         "scoreboard" to "LİDERLƏR TAXTASI",
         "custom_words" to "XÜSUSİ SÖZLƏR",
-        "add_word_pair" to "Söz Cütlüyü Əlavə Et",
         "timer" to "TAYMER",
         "confirm_elimination" to "DAVAM ET",
         "mode_classic" to "Klassik",
@@ -168,10 +169,9 @@ fun t(key: String, language: Language): String {
         "imposter_reveal" to "REVEAL IMPOSTER",
         "word_reveal" to "REVEAL WORD",
         "how_to_play" to "How to Play?",
-        "hint_text" to "Everyone gets a word, but the Imposter sees something else or nothing. Discuss and find the betrayer!",
+        "hint_text" to "Social Games is a suite of fun party games! Play all game modes on a single phone with friends.",
         "scoreboard" to "SCOREBOARD",
         "custom_words" to "CUSTOM WORDS",
-        "add_word_pair" to "Add Custom Pair",
         "timer" to "TIMER",
         "confirm_elimination" to "PROCEED",
         "mode_classic" to "Classic",
@@ -207,6 +207,7 @@ fun ImposterGame(viewModel: GameViewModel) {
             confirmButton = {
                 TextButton(onClick = {
                     showHomeConfirmDialog = false
+                    viewModel.activeGame.value = ActiveGame.HUB
                     viewModel.gameState.value = GameState.HOME
                     viewModel.saveGameState()
                 }) {
@@ -246,31 +247,41 @@ fun ImposterGame(viewModel: GameViewModel) {
 
     ImposterTheme {
         Box(modifier = Modifier.fillMaxSize().background(dynamicBackground)) {
-            AnimatedContent(
-                targetState = viewModel.gameState.value,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                },
-                label = "ScreenTransition"
-            ) { targetState ->
-                when (targetState) {
-                    GameState.HOME -> HomeScreen(viewModel)
-                    GameState.SETUP -> SetupScreen(viewModel)
-                    GameState.LOADING -> LoadingScreen(viewModel)
-                    GameState.SELECTION -> SelectionScreen(viewModel)
-                    GameState.REVEAL -> RevealScreen(viewModel)
-                    GameState.PASS_PHONE -> PassPhoneScreen(viewModel)
-                    GameState.PLAYING -> PlayScreen(viewModel)
-                    GameState.VOTING_RESULTS -> VotingResultsScreen(viewModel)
-                    GameState.EJECT_ANIMATION -> EjectAnimationScreen(viewModel)
-                    GameState.RESULT -> ResultScreen(viewModel)
-                    GameState.CREDITS -> CreditsScreen(viewModel)
-                    GameState.SCOREBOARD -> ScoreboardScreen(viewModel)
-                    GameState.CUSTOM_WORDS -> CustomWordsScreen(viewModel)
+            when (viewModel.activeGame.value) {
+                ActiveGame.HUB -> SocialGamesHubScreen(viewModel)
+                ActiveGame.IMPOSTER_WHO -> {
+                    AnimatedContent(
+                        targetState = viewModel.gameState.value,
+                        transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
+                        label = "ScreenTransition"
+                    ) { targetState ->
+                        when (targetState) {
+                            GameState.HOME -> HomeScreen(viewModel)
+                            GameState.SETUP -> SetupScreen(viewModel)
+                            GameState.LOADING -> LoadingScreen(viewModel)
+                            GameState.SELECTION -> SelectionScreen(viewModel)
+                            GameState.REVEAL -> RevealScreen(viewModel)
+                            GameState.PASS_PHONE -> PassPhoneScreen(viewModel)
+                            GameState.PLAYING -> PlayScreen(viewModel)
+                            GameState.VOTING_RESULTS -> VotingResultsScreen(viewModel)
+                            GameState.EJECT_ANIMATION -> EjectAnimationScreen(viewModel)
+                            GameState.RESULT -> ResultScreen(viewModel)
+                            GameState.CREDITS -> CreditsScreen(viewModel)
+                            GameState.SCOREBOARD -> ScoreboardScreen(viewModel)
+                            GameState.CUSTOM_WORDS -> CustomWordsScreen(viewModel)
+                            else -> HomeScreen(viewModel)
+                        }
+                    }
                 }
+                ActiveGame.WHO_WITH_WHOM -> WhoWithWhomScreen(viewModel)
+                ActiveGame.TRUTH_OR_DARE -> TruthOrDareScreen(viewModel)
+                ActiveGame.ALIAS_HOT_POTATO -> AliasHotPotatoScreen(viewModel)
+                ActiveGame.WHO_AM_I -> WhoAmIScreen(viewModel)
             }
 
-            if (viewModel.gameState.value != GameState.HOME) {
+            // Top-Right Home Button Overlay (except in Hub and active Who Am I guessing)
+            if (viewModel.activeGame.value != ActiveGame.HUB && 
+                !(viewModel.activeGame.value == ActiveGame.WHO_AM_I && viewModel.gameState.value == GameState.PLAYING && !viewModel.whoAmICompleted.value)) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -297,7 +308,137 @@ fun ImposterGame(viewModel: GameViewModel) {
     }
 }
 
-// --- 1. Home Screen (Decluttered & Ultra-Clean) ---
+// --- Social Games Hub Screen ---
+
+@Composable
+fun SocialGamesHubScreen(viewModel: GameViewModel) {
+    val lang = viewModel.language.value
+    val accentColor = Color(viewModel.accentColor.longValue)
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(20.dp).statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Top Bar
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Icon Dots Branding
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(NeonCyan))
+                Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(NeonRed))
+                Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(NeonGreen))
+                Box(modifier = Modifier.size(12.dp).clip(CircleShape).background(NeonYellow))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.clip(CircleShape).background(GlassBackground).padding(4.dp)
+                ) {
+                    LanguageButton("AZ", viewModel.language.value == Language.AZ, accentColor) { viewModel.language.value = Language.AZ }
+                    LanguageButton("EN", viewModel.language.value == Language.EN, accentColor) { viewModel.language.value = Language.EN }
+                }
+                ColorPicker(viewModel)
+            }
+        }
+
+        Text(
+            text = "SOCIAL GAMES",
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontSize = 32.sp,
+                color = Color.White,
+                fontWeight = FontWeight.Black
+            )
+        )
+        Text(
+            text = if (lang == Language.AZ) "Bütün Sosial Oyunlar Birlikdə!" else "All Party Games in One App!",
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 13.sp, color = Color.White.copy(0.6f))
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Game Selection List
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item {
+                HubGameCard(
+                    title = "🎭 Imposter Who?",
+                    subtitle = if (lang == Language.AZ) "İmposter Saxtakarı Tapın!" else "Find the Hidden Betrayer!",
+                    color = accentColor
+                ) {
+                    viewModel.activeGame.value = ActiveGame.IMPOSTER_WHO
+                    viewModel.gameState.value = GameState.HOME
+                }
+            }
+            item {
+                HubGameCard(
+                    title = "✍️ Kim, Kimlə, Harada...?",
+                    subtitle = if (lang == Language.AZ) "3-6 Oyunçu | Hekayə Yaradın" else "3-6 Players | Create Funny Stories",
+                    color = NeonCyan
+                ) {
+                    viewModel.activeGame.value = ActiveGame.WHO_WITH_WHOM
+                    viewModel.gameState.value = GameState.SETUP
+                }
+            }
+            item {
+                HubGameCard(
+                    title = "🍾 Düzlük yoxsa Cəsarət?",
+                    subtitle = if (lang == Language.AZ) "Məktəb (9-cu sinif) Və 18+ Rejimləri" else "Teen & 18+ Party Modes",
+                    color = NeonRed
+                ) {
+                    viewModel.activeGame.value = ActiveGame.TRUTH_OR_DARE
+                    viewModel.gameState.value = GameState.PLAYING
+                    viewModel.startTruthOrDare()
+                }
+            }
+            item {
+                HubGameCard(
+                    title = "🥔 Söz İzahı Və Qaynar Kartof",
+                    subtitle = if (lang == Language.AZ) "Sözləri İzah Et | Partlayan Taymer" else "Explain Words & Pass Hot Potato",
+                    color = NeonYellow
+                ) {
+                    viewModel.activeGame.value = ActiveGame.ALIAS_HOT_POTATO
+                    viewModel.gameState.value = GameState.PLAYING
+                    viewModel.startAliasHotPotato()
+                }
+            }
+            item {
+                HubGameCard(
+                    title = "🎭 Mən Kiməm? (Who Am I?)",
+                    subtitle = if (lang == Language.AZ) "Gizli Persona Və İsti/Soyuq İpucları" else "Guess Your Secret Character",
+                    color = NeonGreen
+                ) {
+                    viewModel.activeGame.value = ActiveGame.WHO_AM_I
+                    viewModel.startWhoAmI()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HubGameCard(title: String, subtitle: String, color: Color, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+            .padding(18.dp)
+    ) {
+        Column {
+            Text(title, style = MaterialTheme.typography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(subtitle, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 12.sp, color = Color.White.copy(0.7f)))
+        }
+    }
+}
+
+// --- 1. Imposter HomeScreen ---
 
 @Composable
 fun HomeScreen(viewModel: GameViewModel) {
@@ -325,7 +466,6 @@ fun HomeScreen(viewModel: GameViewModel) {
         verticalArrangement = Arrangement.SpaceBetween,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Clean Top Action Bar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -355,7 +495,6 @@ fun HomeScreen(viewModel: GameViewModel) {
             }
         }
 
-        // Hero Branding
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "IMPOSTER",
@@ -375,7 +514,6 @@ fun HomeScreen(viewModel: GameViewModel) {
             )
         }
 
-        // Language Segmented Selector dynamically controlled by accentColor
         Row(
             modifier = Modifier
                 .clip(CircleShape)
@@ -391,7 +529,6 @@ fun HomeScreen(viewModel: GameViewModel) {
             }
         }
 
-        // Primary Action Button
         Button(
             onClick = { viewModel.gameState.value = GameState.SETUP },
             modifier = Modifier.height(64.dp).fillMaxWidth(0.85f),
@@ -511,7 +648,6 @@ fun SetupScreen(viewModel: GameViewModel) {
         modifier = Modifier.fillMaxSize().padding(16.dp).statusBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Setup Top Header with Back Arrow
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -525,10 +661,9 @@ fun SetupScreen(viewModel: GameViewModel) {
             Spacer(modifier = Modifier.weight(1f))
             Text(t("players", lang), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
             Spacer(modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.size(48.dp)) // balance layout
+            Spacer(modifier = Modifier.size(48.dp))
         }
 
-        // Difficulty Selection Pills
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -564,7 +699,6 @@ fun SetupScreen(viewModel: GameViewModel) {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Discussion Timer Control
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1264,6 +1398,458 @@ fun ResultScreen(viewModel: GameViewModel) {
     }
 }
 
+// --- Game 2: Who With Whom Screen (Kim, Kimlə) ---
+
+@Composable
+fun WhoWithWhomScreen(viewModel: GameViewModel) {
+    val lang = viewModel.language.value
+    val accentColor = Color(viewModel.accentColor.longValue)
+    var inputText by remember { mutableStateOf("") }
+    val prompts = viewModel.getWhoWithWhomPrompts()
+    val stepIdx = viewModel.storyStepIndex.intValue
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp).statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    viewModel.activeGame.value = ActiveGame.HUB
+                    viewModel.gameState.value = GameState.HOME
+                },
+                modifier = Modifier.background(GlassBackground, CircleShape)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                if (lang == Language.AZ) "Kim, Kimlə, Harada...?" else "Who, With Whom...?",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.size(48.dp))
+        }
+
+        if (viewModel.gameState.value == GameState.SETUP) {
+            // Player Count Setup (Min 3, Max 6)
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (lang == Language.AZ) "Oyunçu Sayı: ${viewModel.players.size} (Min: 3, Max: 6)" else "Players: ${viewModel.players.size} (Min 3, Max 6)",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = { viewModel.addPlayer() },
+                        enabled = viewModel.players.size < 6,
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                    ) {
+                        Text("+ Player", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { viewModel.removePlayer(viewModel.players.last()) },
+                        enabled = viewModel.players.size > 3,
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonRed)
+                    ) {
+                        Text("- Player", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = { viewModel.startWhoWithWhom() },
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(t("start_game", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        } else if (viewModel.gameState.value == GameState.PLAYING) {
+            val prompt = if (stepIdx < prompts.size) prompts[stepIdx] else "..."
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text(prompt, fontSize = 28.sp, fontWeight = FontWeight.Black, color = accentColor)
+                Spacer(modifier = Modifier.height(20.dp))
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    label = { Text(if (lang == Language.AZ) "Bura yazın..." else "Type here...", color = Color.White.copy(0.7f)) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                        focusedBorderColor = accentColor, unfocusedBorderColor = GlassBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Button(
+                    onClick = {
+                        if (inputText.isNotBlank()) {
+                            viewModel.submitStoryInput(inputText)
+                            inputText = ""
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(t("next", lang), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            }
+        } else if (viewModel.gameState.value == GameState.RESULT) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    if (lang == Language.AZ) "HAZIR HEKAYƏ" else "COMPLETED STORY",
+                    fontSize = 22.sp, fontWeight = FontWeight.Bold, color = NeonCyan
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Text(
+                    viewModel.completedStory.value,
+                    fontSize = 24.sp, fontWeight = FontWeight.Medium, color = Color.White, textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = { viewModel.startWhoWithWhom() },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                shape = RoundedCornerShape(28.dp)
+            ) {
+                Text(t("play_again", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+    }
+}
+
+// --- Game 3: Truth or Dare Screen ---
+
+@Composable
+fun TruthOrDareScreen(viewModel: GameViewModel) {
+    val lang = viewModel.language.value
+    val accentColor = Color(viewModel.accentColor.longValue)
+    val item = viewModel.currentTruthOrDareItem.value
+    val targetPlayer = viewModel.currentTodPlayer.value
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp).statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    viewModel.activeGame.value = ActiveGame.HUB
+                    viewModel.gameState.value = GameState.HOME
+                },
+                modifier = Modifier.background(GlassBackground, CircleShape)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+            }
+            Text("Düzlük yoxsa Cəsarət?", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.size(48.dp))
+        }
+
+        // Mode Selector: 9th Grade vs 18+ Adult
+        Row(
+            modifier = Modifier.clip(CircleShape).background(GlassBackground).padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(if (viewModel.truthOrDareMode.value == TruthOrDareMode.NINTH_GRADE) accentColor else Color.Transparent)
+                    .clickable { viewModel.truthOrDareMode.value = TruthOrDareMode.NINTH_GRADE }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("9-cu Sinif (Məktəb)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(if (viewModel.truthOrDareMode.value == TruthOrDareMode.ADULT_18) NeonRed else Color.Transparent)
+                    .clickable { viewModel.truthOrDareMode.value = TruthOrDareMode.ADULT_18 }
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("18+ Böyüklər", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            }
+        }
+
+        GlassCard(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+            if (targetPlayer != null) {
+                Text(
+                    targetPlayer.name,
+                    fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(targetPlayer.color)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            if (item != null) {
+                Text(
+                    if (item.isTruth) "DÜZLÜK / TRUTH" else "CƏSARƏT / DARE",
+                    fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (item.isTruth) NeonCyan else NeonRed
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    if (lang == Language.AZ) item.textAz else item.textEn,
+                    fontSize = 20.sp, fontWeight = FontWeight.Medium, color = Color.White, textAlign = TextAlign.Center
+                )
+            }
+        }
+
+        Button(
+            onClick = { viewModel.pickNextTruthOrDare() },
+            modifier = Modifier.fillMaxWidth(0.85f).height(60.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Text(t("next", lang), fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+        }
+    }
+}
+
+// --- Game 4: Alias & Hot Potato Screen ---
+
+@Composable
+fun AliasHotPotatoScreen(viewModel: GameViewModel) {
+    val lang = viewModel.language.value
+    val accentColor = Color(viewModel.accentColor.longValue)
+    val word = viewModel.currentAliasWord.value
+    var timeLeft by remember { mutableIntStateOf(30) }
+    var isTimerActive by remember { mutableStateOf(true) }
+
+    LaunchedEffect(isTimerActive, timeLeft) {
+        if (isTimerActive && timeLeft > 0) {
+            delay(1000)
+            timeLeft--
+        } else if (timeLeft == 0) {
+            viewModel.isHotPotatoExploded.value = true
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp).statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    viewModel.activeGame.value = ActiveGame.HUB
+                    viewModel.gameState.value = GameState.HOME
+                },
+                modifier = Modifier.background(GlassBackground, CircleShape)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+            }
+            Text("Söz İzahı Və Qaynar Kartof", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.size(48.dp))
+        }
+
+        GlassCard(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+            if (viewModel.isHotPotatoExploded.value) {
+                Text("💥 BOOM! KARTOF PARTLADI! 💥", fontSize = 26.sp, fontWeight = FontWeight.Black, color = NeonRed, textAlign = TextAlign.Center)
+            } else {
+                Text("TAYMER: ${timeLeft}s", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = if (timeLeft <= 5) NeonRed else NeonYellow)
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(word, fontSize = 36.sp, fontWeight = FontWeight.Black, color = Color.White, textAlign = TextAlign.Center)
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(0.9f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                onClick = {
+                    timeLeft = 30
+                    viewModel.isHotPotatoExploded.value = false
+                    viewModel.pickNextAliasWord()
+                },
+                modifier = Modifier.weight(1f).height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Text(t("next", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+    }
+}
+
+// --- Game 5: Who Am I? Screen (Mən Kiməm?) ---
+
+@Composable
+fun WhoAmIScreen(viewModel: GameViewModel) {
+    val lang = viewModel.language.value
+    val accentColor = Color(viewModel.accentColor.longValue)
+    var charInput by remember { mutableStateOf("") }
+    val assignIdx = viewModel.whoAmIAssignmentIndex.intValue
+    val currentAssigner = if (assignIdx < viewModel.players.size) viewModel.players[assignIdx] else null
+
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp).statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Navigation Bar (Home button hidden during active guessing)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (viewModel.whoAmICompleted.value || viewModel.gameState.value == GameState.SETUP) {
+                IconButton(
+                    onClick = {
+                        viewModel.activeGame.value = ActiveGame.HUB
+                        viewModel.gameState.value = GameState.HOME
+                    },
+                    modifier = Modifier.background(GlassBackground, CircleShape)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = Color.White)
+                }
+            } else {
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+
+            Text("Mən Kiməm? (Who Am I?)", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.size(48.dp))
+        }
+
+        if (viewModel.gameState.value == GameState.SETUP) {
+            if (currentAssigner != null) {
+                val targetId = currentAssigner.assignedTargetPlayerId
+                val targetPlayer = viewModel.players.find { it.id == targetId }
+                GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        "${currentAssigner.name}, ${targetPlayer?.name ?: "dostun"} üçün obraz yaz!",
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(currentAssigner.color), textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = charInput,
+                        onValueChange = { charInput = it },
+                        label = { Text("Obraz Adı (məs: Hitler, Messi)", color = Color.White.copy(0.7f)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+                            focusedBorderColor = accentColor, unfocusedBorderColor = GlassBorder
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            if (charInput.isNotBlank()) {
+                                viewModel.submitWhoAmICharacter(charInput)
+                                charInput = ""
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(t("next", lang), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
+        } else if (viewModel.gameState.value == GameState.PLAYING) {
+            val guessIdx = viewModel.whoAmIGuessIndex.intValue
+            val currentGuesser = if (guessIdx < viewModel.players.size) viewModel.players[guessIdx] else viewModel.players.first()
+
+            GlassCard(modifier = Modifier.fillMaxWidth().height(260.dp)) {
+                Text(
+                    currentGuesser.name,
+                    fontSize = 28.sp, fontWeight = FontWeight.Black, color = Color(currentGuesser.color)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    currentGuesser.secretCharacterName,
+                    fontSize = 36.sp, fontWeight = FontWeight.Black, color = NeonCyan, textAlign = TextAlign.Center
+                )
+                if (viewModel.whoAmIFeedback.value.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        viewModel.whoAmIFeedback.value,
+                        fontSize = 22.sp, fontWeight = FontWeight.Bold, color = NeonYellow
+                    )
+                }
+            }
+
+            // Feedback Buttons
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = { viewModel.setWhoAmIFeedback("❄️ SOYUQDUR! (COLD)") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonBlue)
+                    ) {
+                        Text("Soyuq", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = { viewModel.setWhoAmIFeedback("🔥 İSTİDİR! (HOT)") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonRed)
+                    ) {
+                        Text("İsti", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = { viewModel.setWhoAmIFeedback("🎯 ÇOX YAXINDIR!") },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonYellow)
+                    ) {
+                        Text("Çox Yaxın", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.setWhoAmIFeedback("🎉 DÜZDÜR! TAPAN OYUNÇU QALİBDİR!")
+                            viewModel.confirmWhoAmIFound()
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonGreen)
+                    ) {
+                        Text("Düzdür!", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        } else if (viewModel.gameState.value == GameState.RESULT) {
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Text("🎉 TAPILDI VƏ TƏBRİKLƏR!", fontSize = 28.sp, fontWeight = FontWeight.Black, color = NeonGreen, textAlign = TextAlign.Center)
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Button(
+                onClick = {
+                    viewModel.activeGame.value = ActiveGame.HUB
+                    viewModel.gameState.value = GameState.HOME
+                },
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Text(t("back_home", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
 // --- 7. Scoreboard Screen ---
 
 @Composable
@@ -1538,7 +2124,7 @@ fun translateCategory(category: String, language: Language): String {
         "Sport" to "İdman",
         "Vehicle" to "Nəqliyyat",
         "Everyday" to "Məişət Əşyaları",
-        "Custom" to "Xüsusi (Custom)"
+        "Custom" to "Xüsusi"
     )
     return (if (language == Language.AZ) az[category] else category) ?: category
 }
@@ -1703,6 +2289,15 @@ fun EjectAnimationScreen(viewModel: GameViewModel) {
             Text(t("next", lang), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SocialGamesHubScreenPreview() {
+    val context = LocalContext.current
+    val app = (context.applicationContext as? Application) ?: Application()
+    val vm = remember { GameViewModel(app) }
+    SocialGamesHubScreen(vm)
 }
 
 @Preview(showBackground = true)

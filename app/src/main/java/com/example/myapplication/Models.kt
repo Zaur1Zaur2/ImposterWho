@@ -4,6 +4,15 @@ enum class Language {
     AZ, EN
 }
 
+enum class ActiveGame {
+    HUB,
+    IMPOSTER_WHO,
+    WHO_WITH_WHOM,
+    TRUTH_OR_DARE,
+    ALIAS_HOT_POTATO,
+    WHO_AM_I
+}
+
 enum class GameMode {
     CLASSIC,        // 1 Imposter, others Civilians
     UNDERCOVER,     // Civilians vs 1 Undercover (slightly different word)
@@ -23,6 +32,11 @@ enum class Role {
 
 enum class Difficulty {
     EASY, MEDIUM, HARD
+}
+
+enum class TruthOrDareMode {
+    NINTH_GRADE,
+    ADULT_18
 }
 
 enum class GameState {
@@ -58,7 +72,9 @@ data class Player(
     var imposterScore: Int = 0,
     var gamesPlayed: Int = 0,
     var civilianWins: Int = 0,
-    var imposterWins: Int = 0
+    var imposterWins: Int = 0,
+    var assignedTargetPlayerId: Int? = null,
+    var secretCharacterName: String = ""
 )
 
 data class LocalizedWord(
@@ -80,4 +96,11 @@ data class CustomPair(
     val word2: String,
     val hint: String,
     val category: String = "Custom"
+)
+
+data class TruthOrDareItem(
+    val textAz: String,
+    val textEn: String,
+    val isTruth: Boolean,
+    val mode: TruthOrDareMode
 )
